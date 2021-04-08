@@ -185,79 +185,78 @@ class PianoTranscription(object):
             return y
 
 
-    def inference(args):
-       """Inference template.
+def inference(args):
+    """Inference template.
+    Args:
+      model_type: str
+      checkpoint_path: str
+      post_processor_type: 'regression' | 'onsets_frames'. High-resolution 
+        system should use 'regression'. 'onsets_frames' is only used to compare
+        with Googl's onsets and frames system.
+      audio_path: str
+      cuda: bool
+    """
 
-       Args:
-         model_type: str
-         checkpoint_path: str
-         post_processor_type: 'regression' | 'onsets_frames'. High-resolution 
-          system should use 'regression'. 'onsets_frames' is only used to compare
-           with Googl's onsets and frames system.
-         audio_path: str
-         cuda: bool
-       """
-
-           # Arugments & parameters
-           model_type = args.model_type
-           checkpoint_path = args.checkpoint_path
-           post_processor_type = args.post_processor_type
-           device = 'cuda' if args.cuda and torch.cuda.is_available() else 'cpu'
-           audio_path = args.audio_path
+    # Arugments & parameters
+    model_type = args.model_type
+    checkpoint_path = args.checkpoint_path
+    post_processor_type = args.post_processor_type
+    device = 'cuda' if args.cuda and torch.cuda.is_available() else 'cpu'
+    audio_path = args.audio_path
     
-          sample_rate = config.sample_rate
-          segment_samples = sample_rate * 10  
-         """Split audio to multiple 10-second segments for inference"""
+    sample_rate = config.sample_rate
+    segment_samples = sample_rate * 10  
+    """Split audio to multiple 10-second segments for inference"""
 
-          # Paths
-          midi_path = 'results/{}.mid'.format(get_filename(audio_path))
-          create_folder(os.path.dirname(midi_path))
+    # Paths
+    midi_path = 'results/{}.mid'.format(get_filename(audio_path))
+    create_folder(os.path.dirname(midi_path))
  
-          # Load audio
-           (audio, _) = load_audio(audio_path, sr=sample_rate, mono=True)
- 
-          # Transcriptor
-                transcriptor = PianoTranscription(model_type, device=device, 
-                   checkpoint_path=checkpoint_path, segment_samples=segment_samples, 
-                   post_processor_type=post_processor_type)
-   
-          # Transcribe and write out to MIDI file
-          transcribe_time = time.time()
-          transcribed_dict = transcriptor.transcribe(audio, midi_path)
-          print('Transcribe time: {:.3f} s'.format(time.time() - transcribe_time))
+    # Load audio
+    (audio, _) = load_audio(audio_path, sr=sample_rate, mono=True)
 
-          # Visualize for debug
-          plot = True
-          if plot:
-              output_dict = transcribed_dict['output_dict']
-              fig, axs = plt.subplots(5, 1, figsize=(15, 8), sharex=True)
-              mel = librosa.feature.melspectrogram(audio, sr=16000, n_fft=2048, hop_length=160, n_mels=229, fmin=30, fmax=8000)
-              axs[0].matshow(np.log(mel), origin='lower', aspect='auto', cmap='jet')
-              axs[1].matshow(output_dict['frame_output'].T, origin='lower', aspect='auto', cmap='jet')
-              axs[2].matshow(output_dict['reg_onset_output'].T, origin='lower', aspect='auto', cmap='jet')
-              axs[3].matshow(output_dict['reg_offset_output'].T, origin='lower', aspect='auto', cmap='jet')
-              axs[4].plot(output_dict['pedal_frame_output'])
-              axs[0].set_xlim(0, len(output_dict['frame_output']))
-              axs[4].set_xlabel('Frames')
-              axs[0].set_title('Log mel spectrogram')
-              axs[1].set_title('frame_output')
-              axs[2].set_title('reg_onset_output')
-              axs[3].set_title('reg_offset_output')
-              axs[4].set_title('pedal_frame_output')
-              plt.tight_layout(0, .05, 0)
-              fig_path = '_zz.pdf'.format(get_filename(audio_path))
-              plt.savefig(fig_path)
-              print('Plot to {}'.format(fig_path))
+    # Transcriptor
+    transcriptor = PianoTranscription(model_type, device=device, 
+        checkpoint_path=checkpoint_path, segment_samples=segment_samples, 
+        post_processor_type=post_processor_type)
+
+    # Transcribe and write out to MIDI file
+    transcribe_time = time.time()
+    transcribed_dict = transcriptor.transcribe(audio, midi_path)
+    print('Transcribe time: {:.3f} s'.format(time.time() - transcribe_time))
+
+    # Visualize for debug
+    plot = False
+    if plot:
+        output_dict = transcribed_dict['output_dict']
+        fig, axs = plt.subplots(5, 1, figsize=(15, 8), sharex=True)
+        mel = librosa.feature.melspectrogram(audio, sr=16000, n_fft=2048, hop_length=160, n_mels=229, fmin=30, fmax=8000)
+        axs[0].matshow(np.log(mel), origin='lower', aspect='auto', cmap='jet')
+        axs[1].matshow(output_dict['frame_output'].T, origin='lower', aspect='auto', cmap='jet')
+        axs[2].matshow(output_dict['reg_onset_output'].T, origin='lower', aspect='auto', cmap='jet')
+        axs[3].matshow(output_dict['reg_offset_output'].T, origin='lower', aspect='auto', cmap='jet')
+        axs[4].plot(output_dict['pedal_frame_output'])
+        axs[0].set_xlim(0, len(output_dict['frame_output']))
+        axs[4].set_xlabel('Frames')
+        axs[0].set_title('Log mel spectrogram')
+        axs[1].set_title('frame_output')
+        axs[2].set_title('reg_onset_output')
+        axs[3].set_title('reg_offset_output')
+        axs[4].set_title('pedal_frame_output')
+        plt.tight_layout(0, .05, 0)
+        fig_path = '_zz.pdf'.format(get_filename(audio_path))
+        plt.savefig(fig_path)
+        print('Plot to {}'.format(fig_path))
     
 
-      if __name__ == '__main__':
+if __name__ == '__main__':
 
-          parser = argparse.ArgumentParser(description='')
-          parser.add_argument('--model_type', type=str, required=True)
-          parser.add_argument('--checkpoint_path', type=str, required=True)
-          parser.add_argument('--post_processor_type', type=str, default='regression', choices=['onsets_frames', 'regression'])
-          parser.add_argument('--audio_path', type=str, required=True)
-          parser.add_argument('--cuda', action='store_true', default=False)
+    parser = argparse.ArgumentParser(description='')
+    parser.add_argument('--model_type', type=str, required=True)
+    parser.add_argument('--checkpoint_path', type=str, required=True)
+    parser.add_argument('--post_processor_type', type=str, default='regression', choices=['onsets_frames', 'regression'])
+    parser.add_argument('--audio_path', type=str, required=True)
+    parser.add_argument('--cuda', action='store_true', default=False)
 
-          args = parser.parse_args()
-          inference(args)
+    args = parser.parse_args()
+    inference(args)
